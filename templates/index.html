@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Past Paper Link Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Past Paper Link Generator</h1>
+            <p>Generate links or add a new subject to the list below.</p>
+        </header>
+
+        <!-- Main Form -->
+        <form method="POST" action="/">
+            <div class="form-grid">
+                <fieldset>
+                    <legend>1. Year Range</legend>
+                    <input type="text" name="year_range" value="2020-2025" required>
+                </fieldset>
+                <fieldset>
+                    <legend>2. Variants</legend>
+                    <label><input type="checkbox" name="variants_all" checked> All</label>
+                    <label><input type="checkbox" name="variants" value="1"> 1</label>
+                    <label><input type="checkbox" name="variants" value="2"> 2</label>
+                    <label><input type="checkbox" name="variants" value="3"> 3</label>
+                </fieldset>
+                <fieldset>
+                    <legend>3. Sessions</legend>
+                    <label><input type="checkbox" name="sessions_all" checked> All</label>
+                    <label><input type="checkbox" name="sessions" value="w"> Oct/Nov</label>
+                    <label><input type="checkbox" name="sessions" value="s"> May/June</label>
+                    <label><input type="checkbox" name="sessions" value="m"> Feb/March</label>
+                </fieldset>
+            </div>
+            <button type="submit">Generate Links</button>
+        </form>
+
+        <!-- New "Add Subject" Form -->
+        <details class="add-subject-details">
+            <summary>Add or Update a Subject</summary>
+            <form method="POST" action="/add_subject" class="add-subject-form">
+                <input type="text" name="code" placeholder="Subject Code (e.g., 9708)" required>
+                <input type="text" name="name" placeholder="Subject Name (e.g., Economics)" required>
+                <input type="text" name="papers" placeholder="Papers (e.g., 1:MCQ, 2:Data Response)" required>
+                <button type="submit">Save Subject</button>
+            </form>
+        </details>
+
+        <!-- Results Section -->
+        {% if submitted %}
+        <div id="results">
+            <h2>Generated Links</h2>
+            <div class="tab-container">
+                <div class="tab-nav">
+                    {% for code, data in results.items() %}
+                        <button class="tab-link" onclick="openTab(event, '{{ code }}')">{{ data.name }}</button>
+                    {% endfor %}
+                </div>
+                {% for code, data in results.items() %}
+                <div id="{{ code }}" class="tab-content">
+                    {% if data.links %}
+                        {% for year, sessions in data.links.items() %}
+                        <details class="year-group" open>
+                            <summary>{{ year }}</summary>
+                            {% for session_name, session_data in sessions.items() %}
+                            <details class="session-group" open>
+                                <summary class="session-{{ session_data.code }}">
+                                    <span class="session-name">{{ session_name }}</span>
+                                    <div class="session-extras">
+                                        <a href="{{ data.base_url }}{{ data.subject_code }}_{{ session_data.short_code }}_er.pdf" target="_blank" class="extra-link er-link">ER</a>
+                                        <a href="{{ data.base_url }}{{ data.subject_code }}_{{ session_data.short_code }}_gt.pdf" target="_blank" class="extra-link gt-link">GT</a>
+                                    </div>
+                                </summary>
+                                {% for paper_full_desc, types in session_data.papers.items() %}
+                                <div class="paper-group">
+                                    <h4>{{ paper_full_desc }}</h4>
+                                    <div class="links-container">
+                                        <div class="link-column">
+                                            <strong>Question Papers</strong>
+                                            {% for link in types.qp %}<a href="{{ link }}" target="_blank">{{ link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endfor %}
+                                        </div>
+                                        <div class="link-column">
+                                            <strong>Mark Schemes</strong>
+                                            {% for link in types.ms %}<a href="{{ link }}" target="_blank">{{ link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </details>
+                            {% endfor %}
+                        </details>
+                        {% endfor %}
+                    {% else %}
+                        <p>No links found for the selected criteria.</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- JS for tabs remains unchanged -->
+    <script>
+        function openTab(evt, subjectCode) {
+            let tabContents = document.getElementsByClassName("tab-content");
+            for (let i = 0; i < tabContents.length; i++) {tabContents[i].style.display = "none";}
+            let tabLinks = document.getElementsByClassName("tab-link");
+            for (let i = 0; i < tabLinks.length; i++) {tabLinks[i].className = tabLinks[i].className.replace(" active", "");}
+            document.getElementById(subjectCode).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+        document.addEventListener('DOMContentLoaded', (event) => {
+            if (document.querySelector('.tab-link')) {document.querySelector('.tab-link').click();}
+        });
+    </script>
+</body>
+</html>
