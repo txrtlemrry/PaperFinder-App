@@ -8,7 +8,7 @@ app = Flask(__name__)
 SUBJECTS_FILE = 'subjects.json'
 BASE_URL = "https://dynamicpapers.com/wp-content/uploads/2015/09/"
 
-# Helper functions to manage the JSON data
+# Helper functions (load_subjects, save_subjects, generate_urls) remain unchanged
 def load_subjects():
     if not os.path.exists(SUBJECTS_FILE):
         return {}
@@ -35,14 +35,12 @@ def generate_urls(subject_code, start_year, end_year, papers_dict, variants, ses
             session_map = {'w': "Oct/Nov", 's': "May/June", 'm': "Feb/March"}
             session_name = f"{session_map[session_code]} {year}"
             
-            # Pass more data to the template for ER/GT links
             results[year_str][session_name] = {
                 'code': session_code,
-                'short_code': f"{session_code}{year_short}", # e.g., s25
+                'short_code': f"{session_code}{year_short}",
                 'papers': {}
             }
 
-            # Loop through the papers dictionary (with descriptions)
             for paper_num, paper_desc in papers_dict.items():
                 paper_key = f"Paper {paper_num}: {paper_desc}"
                 paper_data = results[year_str][session_name]['papers'][paper_key] = {'qp': [], 'ms': []}
@@ -60,9 +58,22 @@ def generate_urls(subject_code, start_year, end_year, papers_dict, variants, ses
                         paper_data['ms'].append(f"{BASE_URL}{filename}")
     return results
 
+# MODIFICATION 1: This route now only handles the "Yearly Papers" view.
+# In app.py
+
 @app.route('/', methods=['GET', 'POST'])
 def index():
     subjects = load_subjects()
+    
+    # --- START OF FIX ---
+    # Also load topics_data here so the template never gets an error
+    try:
+        with open('topics.json', 'r') as f:
+            topics_data = json.load(f)
+    except FileNotFoundError:
+        topics_data = {}
+    # --- END OF FIX ---
+
     if request.method == 'POST':
         year_range = request.form.get('year_range', '2020-2025').split('-')
         start_year, end_year = year_range[0], year_range[1]
@@ -77,10 +88,37 @@ def index():
                 "base_url": BASE_URL,
                 "links": generate_urls(code, start_year, end_year, data["papers"], variants, sessions, ['qp', 'ms'])
             }
-        return render_template('index.html', results=all_results, submitted=True, subjects=subjects)
+        # Add topical_subjects to the render_template call
+        return render_template('index.html', results=all_results, submitted=True, subjects=subjects, active_view='yearly', topical_subjects=topics_data)
 
-    return render_template('index.html', results=None, submitted=False, subjects=subjects)
+    # Add topical_subjects to this render_template call as well
+    return render_template('index.html', results=None, submitted=False, subjects=subjects, active_view='yearly', topical_subjects=topics_data)
+# NEW ROUTE 2: Add a new route for the "Topical Papers" view.
+# In app.py
 
+# ... (your other routes and functions like index() and add_subject() remain unchanged) ...
+
+# In app.py
+
+# ... (the index() route and other functions remain the same) ...
+
+@app.route('/topical')
+def topical():
+    subjects = load_subjects()
+    try:
+        with open('topics.json', 'r') as f:
+            topics_data = json.load(f)
+    except FileNotFoundError:
+        topics_data = {}
+
+    # We now send ALL topical data to the template. JavaScript will handle showing/hiding.
+    return render_template(
+        'index.html', 
+        subjects=subjects, 
+        active_view='topical',
+        topical_subjects=topics_data, # This now contains ALL subjects' topical data
+        submitted=False
+    )
 @app.route('/add_subject', methods=['POST'])
 def add_subject():
     subjects = load_subjects()
@@ -89,7 +127,6 @@ def add_subject():
     name = request.form['name']
     papers_str = request.form['papers']
     
-    # Parse the papers string (e.g., "1:Pure 1, 4:Mechanics") into a dictionary
     papers_dict = {}
     for part in papers_str.split(','):
         if ':' in part:

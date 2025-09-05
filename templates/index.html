@@ -11,114 +11,177 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Past Paper Link Generator</h1>
-            <p>Generate links or add a new subject to the list below.</p>
-        </header>
+        <!-- NAVIGATION: Uses proper links and Jinja to set the 'active' class -->
+        <div class="tab-nav">
+            <a href="{{ url_for('index') }}" class="tab-link {% if active_view == 'yearly' %}active{% endif %}">Yearly Papers</a>
+            <a href="{{ url_for('topical') }}" class="tab-link {% if active_view == 'topical' %}active{% endif %}">Topical Papers</a>
+        </div>
 
-        <!-- Main Form -->
-        <form method="POST" action="/">
-            <div class="form-grid">
-                <fieldset>
-                    <legend>1. Year Range</legend>
-                    <input type="text" name="year_range" value="2020-2025" required>
-                </fieldset>
-                <fieldset>
-                    <legend>2. Variants</legend>
-                    <label><input type="checkbox" name="variants_all" checked> All</label>
-                    <label><input type="checkbox" name="variants" value="1"> 1</label>
-                    <label><input type="checkbox" name="variants" value="2"> 2</label>
-                    <label><input type="checkbox" name="variants" value="3"> 3</label>
-                </fieldset>
-                <fieldset>
-                    <legend>3. Sessions</legend>
-                    <label><input type="checkbox" name="sessions_all" checked> All</label>
-                    <label><input type="checkbox" name="sessions" value="w"> Oct/Nov</label>
-                    <label><input type="checkbox" name="sessions" value="s"> May/June</label>
-                    <label><input type="checkbox" name="sessions" value="m"> Feb/March</label>
-                </fieldset>
-            </div>
-            <button type="submit">Generate Links</button>
-        </form>
+        <!-- CONTENT: Uses Jinja to control which view is displayed -->
+        <div id="yearly-view" class="main-content-view" {% if active_view != 'yearly' %}style="display: none;"{% endif %}>
+            <header>
+                <h1>Past Paper Link Generator</h1>
+                <p>Generate links or add a new subject to the list below.</p>
+            </header>
 
-        <!-- New "Add Subject" Form -->
-        <details class="add-subject-details">
-            <summary>Add or Update a Subject</summary>
-            <form method="POST" action="/add_subject" class="add-subject-form">
-                <input type="text" name="code" placeholder="Subject Code (e.g., 9708)" required>
-                <input type="text" name="name" placeholder="Subject Name (e.g., Economics)" required>
-                <input type="text" name="papers" placeholder="Papers (e.g., 1:MCQ, 2:Data Response)" required>
-                <button type="submit">Save Subject</button>
-            </form>
-        </details>
-
-        <!-- Results Section -->
-        {% if submitted %}
-        <div id="results">
-            <h2>Generated Links</h2>
-            <div class="tab-container">
-                <div class="tab-nav">
-                    {% for code, data in results.items() %}
-                        <button class="tab-link" onclick="openTab(event, '{{ code }}')">{{ data.name }}</button>
-                    {% endfor %}
+            <form method="POST" action="{{ url_for('index') }}">
+                <div class="form-grid">
+                    <fieldset><legend>1. Year Range</legend><input type="text" name="year_range" value="2020-2025" required></fieldset>
+                    <fieldset><legend>2. Variants</legend><label><input type="checkbox" name="variants_all" checked> All</label><label><input type="checkbox" name="variants" value="1"> 1</label><label><input type="checkbox" name="variants" value="2"> 2</label><label><input type="checkbox" name="variants" value="3"> 3</label></fieldset>
+                    <fieldset><legend>3. Sessions</legend><label><input type="checkbox" name="sessions_all" checked> All</label><label><input type="checkbox" name="sessions" value="w"> Oct/Nov</label><label><input type="checkbox" name="sessions" value="s"> May/June</label><label><input type="checkbox" name="sessions" value="m"> Feb/March</label></fieldset>
                 </div>
-                {% for code, data in results.items() %}
-                <div id="{{ code }}" class="tab-content">
-                    {% if data.links %}
-                        {% for year, sessions in data.links.items() %}
-                        <details class="year-group" open>
-                            <summary>{{ year }}</summary>
-                            {% for session_name, session_data in sessions.items() %}
-                            <details class="session-group" open>
-                                <summary class="session-{{ session_data.code }}">
-                                    <span class="session-name">{{ session_name }}</span>
-                                    <div class="session-extras">
-                                        <a href="{{ data.base_url }}{{ data.subject_code }}_{{ session_data.short_code }}_er.pdf" target="_blank" class="extra-link er-link">ER</a>
-                                        <a href="{{ data.base_url }}{{ data.subject_code }}_{{ session_data.short_code }}_gt.pdf" target="_blank" class="extra-link gt-link">GT</a>
-                                    </div>
-                                </summary>
-                                {% for paper_full_desc, types in session_data.papers.items() %}
-                                <div class="paper-group">
-                                    <h4>{{ paper_full_desc }}</h4>
-                                    <div class="links-container">
-                                        <div class="link-column">
-                                            <strong>Question Papers</strong>
-                                            {% for link in types.qp %}<a href="{{ link }}" target="_blank">{{ link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endfor %}
+                <button type="submit">Generate Links</button>
+            </form>
+
+            <details class="add-subject-details">
+                <summary>Add or Update a Subject</summary>
+                <form method="POST" action="/add_subject" class="add-subject-form">
+                    <input type="text" name="code" placeholder="Subject Code (e.g., 9708)" required><input type="text" name="name" placeholder="Subject Name (e.g., Economics)" required><input type="text" name="papers" placeholder="Papers (e.g., 1:MCQ, 2:Data Response)" required><button type="submit">Save Subject</button>
+                </form>
+            </details>
+
+            {% if submitted and active_view == 'yearly' %}
+            <div id="results">
+                <h2>Generated Links</h2>
+                <div class="tab-container">
+                    <div class="tab-nav">
+                        {% for code, data in results.items() %}<button class="tab-link" onclick="openTab(event, '{{ code }}')">{{ data.name }}</button>{% endfor %}
+                    </div>
+                    {% for code, data in results.items() %}
+                    <div id="{{ code }}" class="tab-content">
+                        <!-- THIS IS THE CRUCIAL PART THAT WAS MISSING -->
+                        {% if data.links %}
+                            {% for year, sessions in data.links.items() %}
+                            <details class="year-group" open><summary>{{ year }}</summary>
+                                {% for session_name, session_data in sessions.items() %}
+                                <details class="session-group" open><summary class="session-{{ session_data.code }}"><span class="session-name">{{ session_name }}</span><div class="session-extras"><a href="{{ data.base_url }}{{ data.subject_code }}_{{ session_data.short_code }}_er.pdf" target="_blank" class="extra-link er-link">ER</a><a href="{{ data.base_url }}{{ data.subject_code }}_{{ session_data.short_code }}_gt.pdf" target="_blank" class="extra-link gt-link">GT</a></div></summary>
+                                    {% for paper_full_desc, types in session_data.papers.items() %}
+                                    <div class="paper-group">
+                                        <h4>{{ paper_full_desc }}</h4>
+                                        <div class="links-container">
+                                            <div class="link-column"><strong>Question Papers</strong>{% for link in types.qp %}<a href="{{ link }}" target="_blank">{{ link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endfor %}</div>
+                                            <div class="link-column"><strong>Mark Schemes</strong>{% for link in types.ms %}<a href="{{ link }}" target="_blank">{{ link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endfor %}</div>
                                         </div>
-                                        <div class="link-column">
-                                            <strong>Mark Schemes</strong>
-                                            {% for link in types.ms %}<a href="{{ link }}" target="_blank">{{ link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endfor %}
-                                        </div>
                                     </div>
-                                </div>
+                                    {% endfor %}
+                                </details>
                                 {% endfor %}
                             </details>
                             {% endfor %}
-                        </details>
-                        {% endfor %}
-                    {% else %}
-                        <p>No links found for the selected criteria.</p>
-                    {% endif %}
+                        {% else %}<p>No links found for the selected criteria.</p>{% endif %}
+                    </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
+            {% endif %}
         </div>
-        {% endif %}
+
+       <!-- In index.html, replace the old #topical-view div with this one -->
+
+<!-- In index.html, replace the old #topical-view div with this one -->
+
+<div id="topical-view" class="main-content-view" {% if active_view != 'topical' %}style="display: none;"{% endif %}>
+    <header>
+       <h1>Topical Paper Generator</h1>
+       <p>Browse past paper questions sorted by topic for a selected subject.</p>
+    </header>
+
+    {% if topical_subjects %}
+    <div class="tab-container">
+        <!-- 1. Create the Tab Buttons (just like the yearly results) -->
+        <div class="tab-nav">
+            {% for code, data in topical_subjects.items() %}
+                <button class="tab-link" onclick="openTopicalTab(event, '{{ code }}')">{{ data.subject_name }}</button>
+            {% endfor %}
+        </div>
+
+        <!-- 2. Create the Content for Each Tab -->
+        {% for code, data in topical_subjects.items() %}
+        <div id="topical-{{ code }}" class="topical-tab-content">
+            {% for unit in data.units %}
+            <details class="year-group" open>
+                <summary>{{ unit.unit_number }}. {{ unit.unit_name }}</summary>
+                {% for subunit in unit.subunits %}
+                <details class="session-group" open>
+                    <summary>{{ subunit.subunit_number }} {{ subunit.subunit_name }}</summary>
+                    {% for paper in subunit.papers %}
+                    <div class="paper-group">
+                        <h4>{{ paper.paper_name }}</h4>
+                        <div class="links-container">
+                            <div class="link-column">
+                                <strong>Question Paper</strong>
+                                {% if paper.qp_link %}<a href="{{ url_for('static', filename=paper.qp_link.replace('/static/', '')) }}" target="_blank">{{ paper.qp_link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endif %}
+                            </div>
+                            <div class="link-column">
+                                <strong>Mark Scheme</strong>
+                                {% if paper.ms_link %}<a href="{{ url_for('static', filename=paper.ms_link.replace('/static/', '')) }}" target="_blank">{{ paper.ms_link.split('/')[-1] }}</a>{% else %}<span class="no-links">N/A</span>{% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not subunit.papers %}<div class="paper-group"><p class="no-links">No topical papers available for this subunit yet.</p></div>{% endif %}
+                </details>
+                {% endfor %}
+            </details>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No topical subjects have been defined in topics.json yet.</p>
+    {% endif %}
+</div>
     </div>
 
-    <!-- JS for tabs remains unchanged -->
-    <script>
-        function openTab(evt, subjectCode) {
-            let tabContents = document.getElementsByClassName("tab-content");
-            for (let i = 0; i < tabContents.length; i++) {tabContents[i].style.display = "none";}
-            let tabLinks = document.getElementsByClassName("tab-link");
-            for (let i = 0; i < tabLinks.length; i++) {tabLinks[i].className = tabLinks[i].className.replace(" active", "");}
-            document.getElementById(subjectCode).style.display = "block";
-            evt.currentTarget.className += " active";
+    <!-- JAVASCRIPT: The switchView function is removed -->
+  <!-- In index.html, inside the <script> tag -->
+<script>
+    // NEW function to control the TOPICAL subject tabs
+    function openTopicalTab(evt, subjectCode) {
+        // Hide all topical content sections
+        let tabContents = document.getElementsByClassName("topical-tab-content");
+        for (let i = 0; i < tabContents.length; i++) {
+            tabContents[i].style.display = "none";
         }
-        document.addEventListener('DOMContentLoaded', (event) => {
-            if (document.querySelector('.tab-link')) {document.querySelector('.tab-link').click();}
-        });
-    </script>
+
+        // Deactivate all topical tab links
+        // We look inside the #topical-view to not interfere with the other tab system
+        let topicalNav = document.querySelector('#topical-view .tab-nav');
+        let tabLinks = topicalNav.getElementsByClassName("tab-link");
+        for (let i = 0; i < tabLinks.length; i++) {
+            tabLinks[i].className = tabLinks[i].className.replace(" active", "");
+        }
+
+        // Show the correct content and activate the clicked tab
+        document.getElementById("topical-" + subjectCode).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+
+    // Your ORIGINAL function for the YEARLY subject tabs remains unchanged
+    function openTab(evt, subjectCode) {
+        let resultsContainer = document.getElementById('results');
+        if (!resultsContainer) return;
+        let tabContents = resultsContainer.getElementsByClassName("tab-content");
+        for (let i = 0; i < tabContents.length; i++) {tabContents[i].style.display = "none";}
+        let tabLinks = resultsContainer.getElementsByClassName("tab-link");
+        for (let i = 0; i < tabLinks.length; i++) {tabLinks[i].className = tabLinks[i].className.replace(" active", "");}
+        document.getElementById(subjectCode).style.display = "block";
+        evt.currentTarget.className += " active";
+    }
+
+    document.addEventListener('DOMContentLoaded', (event) => {
+        // Click the first YEARLY subject tab if it exists
+        let firstYearlyTab = document.querySelector('#results .tab-link');
+        if (firstYearlyTab) {
+            firstYearlyTab.click();
+        }
+
+        // Click the first TOPICAL subject tab if it exists
+        let firstTopicalTab = document.querySelector('#topical-view .tab-link');
+        if (firstTopicalTab) {
+            firstTopicalTab.click();
+        }
+    });
+</script>
 </body>
 </html>

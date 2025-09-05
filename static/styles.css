@@ -47,7 +47,11 @@ button[type="submit"]:hover { background-color: #A6C8FF; }
 .tab-link.active { color: #82B1FF; border-bottom-color: #82B1FF; }
 .tab-content { display: none; animation: fadeIn 0.5s; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
+/* --- Top-Level Navigation Spacing --- */
+/* Add some space below the new top-level nav bar */
+.container > .tab-nav {
+    margin-bottom: 30px;
+}
 /* --- Results Formatting --- */
 summary { list-style: none; }
 summary::-webkit-details-marker { display: none; }
